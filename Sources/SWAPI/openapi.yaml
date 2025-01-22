@@ -1,0 +1,302 @@
+openapi: 3.0.0
+info:
+  title: SWAPI.tech API
+  version: 1.0.0
+servers:
+  - url: https://www.swapi.tech/api
+paths:
+  /people:
+    get:
+      operationId: listPeople
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  total_records:
+                    type: integer
+                  total_pages:
+                    type: integer
+                  previous:
+                    type: string
+                  next:
+                    type: string
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ListItem'
+  /people/{id}:
+    get:
+      operationId: getPerson
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonResponse'
+  /planets:
+    get:
+      operationId: listPlanets
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListResponse'
+  /planets/{id}:
+    get:
+      operationId: getPlanet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanetResponse'
+  /starships:
+    get:
+      operationId: listStarships
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListResponse'
+  /starships/{id}:
+    get:
+      operationId: getStarship
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StarshipResponse'
+components:
+  schemas:
+    ListItem:
+      type: object
+      properties:
+        uid:
+          type: string
+        name:
+          type: string
+        url:
+          type: string
+    ListResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        total_records:
+          type: integer
+        total_pages:
+          type: integer
+        previous:
+          type: string
+        next:
+          type: string
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ListItem'
+    PersonResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        result:
+          type: object
+          properties:
+            properties:
+              type: object
+              properties:
+                height:
+                  type: string
+                mass:
+                  type: string
+                hair_color:
+                  type: string
+                skin_color:
+                  type: string
+                eye_color:
+                  type: string
+                birth_year:
+                  type: string
+                gender:
+                  type: string
+                created:
+                  type: string
+                edited:
+                  type: string
+                name:
+                  type: string
+                homeworld:
+                  type: string
+                url:
+                  type: string
+            description:
+              type: string
+            _id:
+              type: string
+            uid:
+              type: string
+            __v:
+              type: integer
+    PlanetResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        result:
+          type: object
+          properties:
+            properties:
+              type: object
+              properties:
+                diameter:
+                  type: string
+                rotation_period:
+                  type: string
+                orbital_period:
+                  type: string
+                gravity:
+                  type: string
+                population:
+                  type: string
+                climate:
+                  type: string
+                terrain:
+                  type: string
+                surface_water:
+                  type: string
+                created:
+                  type: string
+                edited:
+                  type: string
+                name:
+                  type: string
+                url:
+                  type: string
+            description:
+              type: string
+            _id:
+              type: string
+            uid:
+              type: string
+            __v:
+              type: integer
+    StarshipResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        result:
+          type: object
+          properties:
+            properties:
+              type: object
+              properties:
+                model:
+                  type: string
+                starship_class:
+                  type: string
+                manufacturer:
+                  type: string
+                cost_in_credits:
+                  type: string
+                length:
+                  type: string
+                crew:
+                  type: string
+                passengers:
+                  type: string
+                max_atmosphering_speed:
+                  type: string
+                hyperdrive_rating:
+                  type: string
+                MGLT:
+                  type: string
+                cargo_capacity:
+                  type: string
+                consumables:
+                  type: string
+                pilots:
+                  type: array
+                  items:
+                    type: string
+                created:
+                  type: string
+                edited:
+                  type: string
+                name:
+                  type: string
+                url:
+                  type: string
+            description:
+              type: string
+            _id:
+              type: string
+            uid:
+              type: string
+            __v:
+              type: integer
