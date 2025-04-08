@@ -21,6 +21,7 @@ let package = Package(
                 .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
                 .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession")
             ],
+            exclude: ["openapi.yaml", "openapi-generator-config.yaml"],
             swiftSettings: [
                 .define("PUBLIC_TYPES")
             ]
