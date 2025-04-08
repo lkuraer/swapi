@@ -1,10 +1,3 @@
-//
-//  CacheableWithID.swift
-//  swapiclient
-//
-//  Created by Kes on 08/04/25.
-//
-
 import Foundation
 import OpenAPIRuntime
 import OpenAPIURLSession
@@ -154,6 +147,10 @@ struct CacheMetadata: Codable, Sendable {
     }
 }
 
+// MARK: - Типы обратных вызовов для мониторинга кэша
+public typealias CacheHitCallback = @Sendable (String) -> Void
+public typealias CacheMissCallback = @Sendable (String) -> Void
+
 // MARK: - Клиент API с кэшированием
 
 /// Кэшированная обёртка над SWAPI клиентом
@@ -162,11 +159,25 @@ public final class CachedSWAPIClient: APIProtocol {
     private let baseClient: APIProtocol
     /// Конфигурация кэширования
     private let cacheConfig: CacheConfig
+    /// Включить логирование
+    private let enableLogging: Bool
+    /// Обратные вызовы для мониторинга кэша
+    private let onCacheHit: CacheHitCallback?
+    private let onCacheMiss: CacheMissCallback?
     
     /// Инициализация кэшированного клиента
-    public init(baseClient: APIProtocol, cacheConfig: CacheConfig) {
+    public init(
+        baseClient: APIProtocol,
+        cacheConfig: CacheConfig,
+        enableLogging: Bool = false,
+        onCacheHit: CacheHitCallback? = nil,
+        onCacheMiss: CacheMissCallback? = nil
+    ) {
         self.baseClient = baseClient
         self.cacheConfig = cacheConfig
+        self.enableLogging = enableLogging
+        self.onCacheHit = onCacheHit
+        self.onCacheMiss = onCacheMiss
     }
     
     /// Вспомогательный метод для сохранения объекта в кэш с метаданными
@@ -218,6 +229,21 @@ public final class CachedSWAPIClient: APIProtocol {
         return "\(endpoint)_\(id)"
     }
     
+    /// Логирование источника данных
+    private func logCacheHit(endpoint: String) {
+        if enableLogging {
+            print("📦 Загружено из кэша: \(endpoint)")
+        }
+        onCacheHit?(endpoint)
+    }
+    
+    private func logCacheMiss(endpoint: String) {
+        if enableLogging {
+            print("🌐 Загрузка с сервера: \(endpoint)")
+        }
+        onCacheMiss?(endpoint)
+    }
+    
     // MARK: - API Methods Implementation
 
     public func listPeople(_ input: Operations.ListPeople.Input) async throws -> Operations.ListPeople.Output {
@@ -228,8 +254,11 @@ public final class CachedSWAPIClient: APIProtocol {
             forKey: cacheKey,
             as: Operations.ListPeople.Output.Ok.Body.JsonPayload.self
         ) {
+            logCacheHit(endpoint: "people (page: \(input.query.page ?? 1), limit: \(input.query.limit ?? 10))")
             return .ok(.init(body: .json(cachedResponse)))
         }
+        
+        logCacheMiss(endpoint: "people (page: \(input.query.page ?? 1), limit: \(input.query.limit ?? 10))")
         
         // Если в кэше нет или он устарел, делаем запрос
         let response = try await baseClient.listPeople(input)
@@ -251,8 +280,11 @@ public final class CachedSWAPIClient: APIProtocol {
             forKey: cacheKey,
             as: Components.Schemas.PersonResponse.self
         ) {
+            logCacheHit(endpoint: "person/\(input.path.id)")
             return .ok(.init(body: .json(cachedResponse)))
         }
+        
+        logCacheMiss(endpoint: "person/\(input.path.id)")
         
         // Если в кэше нет или он устарел, делаем запрос
         let response = try await baseClient.getPerson(input)
@@ -274,8 +306,11 @@ public final class CachedSWAPIClient: APIProtocol {
             forKey: cacheKey,
             as: Components.Schemas.ListResponse.self
         ) {
+            logCacheHit(endpoint: "planets (page: \(input.query.page ?? 1), limit: \(input.query.limit ?? 10))")
             return .ok(.init(body: .json(cachedResponse)))
         }
+        
+        logCacheMiss(endpoint: "planets (page: \(input.query.page ?? 1), limit: \(input.query.limit ?? 10))")
         
         // Если в кэше нет или он устарел, делаем запрос
         let response = try await baseClient.listPlanets(input)
@@ -297,8 +332,11 @@ public final class CachedSWAPIClient: APIProtocol {
             forKey: cacheKey,
             as: Components.Schemas.PlanetResponse.self
         ) {
+            logCacheHit(endpoint: "planet/\(input.path.id)")
             return .ok(.init(body: .json(cachedResponse)))
         }
+        
+        logCacheMiss(endpoint: "planet/\(input.path.id)")
         
         // Если в кэше нет или он устарел, делаем запрос
         let response = try await baseClient.getPlanet(input)
@@ -320,8 +358,11 @@ public final class CachedSWAPIClient: APIProtocol {
             forKey: cacheKey,
             as: Components.Schemas.ListResponse.self
         ) {
+            logCacheHit(endpoint: "starships (page: \(input.query.page ?? 1), limit: \(input.query.limit ?? 10))")
             return .ok(.init(body: .json(cachedResponse)))
         }
+        
+        logCacheMiss(endpoint: "starships (page: \(input.query.page ?? 1), limit: \(input.query.limit ?? 10))")
         
         // Если в кэше нет или он устарел, делаем запрос
         let response = try await baseClient.listStarships(input)
@@ -343,8 +384,11 @@ public final class CachedSWAPIClient: APIProtocol {
             forKey: cacheKey,
             as: Components.Schemas.StarshipResponse.self
         ) {
+            logCacheHit(endpoint: "starship/\(input.path.id)")
             return .ok(.init(body: .json(cachedResponse)))
         }
+        
+        logCacheMiss(endpoint: "starship/\(input.path.id)")
         
         // Если в кэше нет или он устарел, делаем запрос
         let response = try await baseClient.getStarship(input)
@@ -374,7 +418,10 @@ public enum SWAPIClientFactory {
     public static func createFileSystemCachedClient(
         ttl: TimeInterval = 3600,
         cacheName: String = "swapi-cache",
-        isEnabled: Bool = true
+        isEnabled: Bool = true,
+        enableLogging: Bool = false,
+        onCacheHit: CacheHitCallback? = nil,
+        onCacheMiss: CacheMissCallback? = nil
     ) throws -> APIProtocol {
         let baseClient = try createStandardClient()
         let cacheService = try FileSystemCacheService(cacheName: cacheName)
@@ -385,6 +432,12 @@ public enum SWAPIClientFactory {
             isEnabled: isEnabled
         )
         
-        return CachedSWAPIClient(baseClient: baseClient, cacheConfig: cacheConfig)
+        return CachedSWAPIClient(
+            baseClient: baseClient,
+            cacheConfig: cacheConfig,
+            enableLogging: enableLogging,
+            onCacheHit: onCacheHit,
+            onCacheMiss: onCacheMiss
+        )
     }
 }
