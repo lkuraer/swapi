@@ -9,8 +9,6 @@ import Foundation
 import OpenAPIRuntime
 import OpenAPIURLSession
 
-// MARK: - Кэширование объектов модели
-
 /// Протокол для объектов, которые можно кэшировать с идентификатором
 public protocol CacheableWithID {
     var id: String? { get }
@@ -45,7 +43,7 @@ extension Components.Schemas.ListResponse: CacheableWithID {
 // MARK: - Сервис для кэширования данных
 
 /// Протокол для сервиса кэширования
-public protocol CacheService {
+public protocol CacheService: Sendable {
     /// Сохранить объект в кэш
     func save<T: Codable>(_ object: T, forKey key: String) throws
     
@@ -65,7 +63,7 @@ public protocol CacheService {
 // MARK: - Реализация кэширования через файловую систему
 
 /// Кэш-сервис, использующий файловую систему
-public class FileSystemCacheService: CacheService {
+public final class FileSystemCacheService: CacheService, @unchecked Sendable {
     private let cacheDirectory: URL
     private let fileManager = FileManager.default
     
@@ -123,60 +121,10 @@ public class FileSystemCacheService: CacheService {
     }
 }
 
-// MARK: - Реализация кэширования через UserDefaults
-
-/// Кэш-сервис, использующий UserDefaults
-public class UserDefaultsCacheService: CacheService {
-    private let defaults: UserDefaults
-    private let keyPrefix: String
-    
-    /// Инициализация с указанием UserDefaults и префикса для ключей
-    public init(defaults: UserDefaults = .standard, keyPrefix: String = "swapi_cache_") {
-        self.defaults = defaults
-        self.keyPrefix = keyPrefix
-    }
-    
-    /// Формирование полного ключа с префиксом
-    private func prefixedKey(_ key: String) -> String {
-        return "\(keyPrefix)\(key)"
-    }
-    
-    public func save<T: Codable>(_ object: T, forKey key: String) throws {
-        let data = try JSONEncoder().encode(object)
-        defaults.set(data, forKey: prefixedKey(key))
-    }
-    
-    public func get<T: Codable>(forKey key: String, as type: T.Type) throws -> T? {
-        guard let data = defaults.data(forKey: prefixedKey(key)) else {
-            return nil
-        }
-        
-        return try JSONDecoder().decode(type, from: data)
-    }
-    
-    public func exists(forKey key: String) -> Bool {
-        return defaults.object(forKey: prefixedKey(key)) != nil
-    }
-    
-    public func remove(forKey key: String) throws {
-        defaults.removeObject(forKey: prefixedKey(key))
-    }
-    
-    public func clear() throws {
-        let allKeys = defaults.dictionaryRepresentation().keys
-        
-        for key in allKeys {
-            if key.hasPrefix(keyPrefix) {
-                defaults.removeObject(forKey: key)
-            }
-        }
-    }
-}
-
 // MARK: - Конфигурация кэширования
 
 /// Конфигурация для кэшированного клиента
-public struct CacheConfig {
+public struct CacheConfig: Sendable {
     /// Время жизни кэша в секундах
     public let ttl: TimeInterval
     /// Сервис для кэширования
@@ -197,7 +145,7 @@ public struct CacheConfig {
 // MARK: - Кэширование метаданных
 
 /// Метаданные объекта в кэше
-struct CacheMetadata: Codable {
+struct CacheMetadata: Codable, Sendable {
     /// Время создания записи в кэше
     let timestamp: Date
     /// Ключ для метаданных (добавляется постфикс _metadata)
@@ -430,24 +378,6 @@ public enum SWAPIClientFactory {
     ) throws -> APIProtocol {
         let baseClient = try createStandardClient()
         let cacheService = try FileSystemCacheService(cacheName: cacheName)
-        
-        let cacheConfig = CacheConfig(
-            ttl: ttl,
-            cacheService: cacheService,
-            isEnabled: isEnabled
-        )
-        
-        return CachedSWAPIClient(baseClient: baseClient, cacheConfig: cacheConfig)
-    }
-    
-    /// Создать клиент с кэшированием в UserDefaults
-    public static func createUserDefaultsCachedClient(
-        ttl: TimeInterval = 3600,
-        keyPrefix: String = "swapi_cache_",
-        isEnabled: Bool = true
-    ) throws -> APIProtocol {
-        let baseClient = try createStandardClient()
-        let cacheService = UserDefaultsCacheService(keyPrefix: keyPrefix)
         
         let cacheConfig = CacheConfig(
             ttl: ttl,
